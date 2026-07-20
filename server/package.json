@@ -1,0 +1,23 @@
+{
+  "name": "os11backend-server",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "nodemon server.js",
+    "seed": "node seed.js",
+    "seed-notes": "node seedNotes.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.0",
+    "express": "^4.21.0",
+    "express-rate-limit": "^7.1.5",
+    "express-validator": "^7.0.0",
+    "helmet": "^7.0.0",
+    "mongoose": "^8.0.0",
+    "morgan": "^1.10.0",
+    "nodemailer": "^6.9.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
