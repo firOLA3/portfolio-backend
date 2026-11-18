@@ -17,6 +17,8 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const clientUrl = process.env.CLIENT_URL?.replace(/\/+$/, '') || '*';
 
+app.set('trust proxy', 1);
+
 app.use(cors({ origin: clientUrl }));
 app.use(helmet());
 app.use(morgan('dev'));

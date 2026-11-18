@@ -1,32 +1,19 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const rateLimit = require('express-rate-limit');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const Message = require('../models/Message');
 
 const router = express.Router();
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
 
 const contactLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
   message: 'Too many contact requests from this IP, please try again later.',
 });
-
-let emailTransporter;
-try {
-  emailTransporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-    tls: {
-      rejectUnauthorized: false
-    }
-  });
-} catch (error) {
-  console.warn('Email service not configured. Messages will be saved but not emailed.');
-}
 
 router.post(
   '/',
@@ -58,27 +45,38 @@ router.post(
 
       await newMessage.save();
 
-      if (emailTransporter) {
+      let emailSent = false;
+      if (!resend || !process.env.RESEND_FROM || !process.env.EMAIL_USER) {
+        console.error(
+          'Email notification not sent: RESEND_API_KEY, RESEND_FROM, and EMAIL_USER must be configured.'
+        );
+      } else {
         try {
-          await emailTransporter.sendMail({
-            from: process.env.EMAIL_USER,
+          const { error } = await resend.emails.send({
+            from: process.env.RESEND_FROM,
             to: process.env.EMAIL_USER,
             replyTo: email,
             subject: `New Portfolio Contact: ${subject}`,
-            html: `
-              <h2>New Message from ${name}</h2>
-              <p><strong>From:</strong> ${email}</p>
-              <p><strong>Subject:</strong> ${subject}</p>
-              <p><strong>Message:</strong></p>
-              <p>${message.replace(/\n/g, '<br>')}</p>
-            `,
+            text: `New message from ${name}\nEmail: ${email}\nSubject: ${subject}\n\n${message}`,
           });
+
+          if (error) {
+            console.error('Resend email send error:', error);
+          } else {
+            emailSent = true;
+          }
         } catch (emailError) {
-          console.error('Email send error:', emailError);
+          console.error('Resend email send error:', emailError);
         }
       }
 
-      res.json({ success: true, message: 'Message received! I\'ll get back to you soon ✔' });
+      res.json({
+        success: true,
+        emailSent,
+        message: emailSent
+          ? 'Message received! I\'ll get back to you soon ✔'
+          : 'Your message was saved, but its email notification could not be sent. Please try another contact method if you need a timely response.',
+      });
     } catch (error) {
       next(error);
     }
